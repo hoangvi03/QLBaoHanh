@@ -104,6 +104,7 @@ namespace QLBaoHanh
 
             return dt;
         }
+
         public bool checkSP(string ma)
         {
             var sp = sanPhamCollection.Find(Builders<SanPham>.Filter.Eq(s => s._id, ma)).FirstOrDefault();
@@ -144,6 +145,38 @@ namespace QLBaoHanh
             sanPhamCollection.UpdateOne(filter, update);
         }
 
+        internal object TimTheoTenSP_DSSP(string text)
+        {
+            var filter = Builders<SanPham>.Filter.Regex(s => s.ten_san_pham, new BsonRegularExpression(text, "i"));
+            var docs = sanPhamCollection.Find(filter).ToList();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Mã sản phẩm");
+            dt.Columns.Add("Tên sản phẩm");
+            dt.Columns.Add("Model");
+            dt.Columns.Add("Số seri");
+            dt.Columns.Add("Ngày mua");
+            dt.Columns.Add("Thời gian bảo hành");
+            dt.Columns.Add("Khách hàng");
+
+            foreach (var doc in docs)
+            {
+                DataRow row = dt.NewRow();
+                row["Mã sản phẩm"] = doc._id;
+                row["Tên sản phẩm"] = doc.ten_san_pham;
+                row["Model"] = doc.model;
+                row["Số seri"] = doc.so_seri;
+                row["Ngày mua"] = doc.ngay_mua;
+                row["Thời gian bảo hành"] = doc.thoi_gian_bao_hanh;
+
+                var khachHang = khachHangCollection.Find(x => x._id == doc.id_khach_hang).FirstOrDefault();
+                row["Khách hàng"] = khachHang != null ? khachHang.ten_khach_hang : "Không xác định";
+                dt.Rows.Add(row);
+            }
+
+            return docs;
+        }
+
         //------------------------------------Khách hàng--------------------------------------------
         public DataTable getKhachHang()
         {
@@ -171,6 +204,32 @@ namespace QLBaoHanh
             return dt;
         }
 
+        internal object TimKiemKHTheoTen(string text)
+        {
+            var filter = Builders<KhachHang>.Filter.Regex(s => s.ten_khach_hang, new BsonRegularExpression(text, "i"));
+            var docs = khachHangCollection.Find(filter).ToList();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Mã khách hàng");
+            dt.Columns.Add("Tên khách hàng");
+            dt.Columns.Add("Địa chỉ");
+            dt.Columns.Add("Số điện thoại");
+            dt.Columns.Add("Email");
+
+            foreach (var doc in docs)
+            {
+                DataRow row = dt.NewRow();
+                row["Mã khách hàng"] = doc._id;
+                row["Tên khách hàng"] = doc.ten_khach_hang;
+                row["Địa chỉ"] = doc.dia_chi;
+                row["Số điện thoại"] = doc.so_dien_thoai;
+                row["Email"] = doc.email;
+
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
         public bool checkKH(string ma)
         {
             var KH = khachHangCollection.Find(Builders<KhachHang>.Filter.Eq(s => s._id, ma)).FirstOrDefault();
@@ -205,6 +264,38 @@ namespace QLBaoHanh
         public DataTable getPhieuBaoHanh()
         {
             var docs = phieuBaoHanhCollection.Find(FilterDefinition<PhieuBaoHanh>.Empty).ToList();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Mã phiếu");
+            dt.Columns.Add("Tên sản phẩm");
+            dt.Columns.Add("Ngày kích hoạt");
+            dt.Columns.Add("Ngày hết hạn");
+            dt.Columns.Add("Trạng thái");
+
+            foreach (var doc in docs)
+            {
+                DataRow row = dt.NewRow();
+                row["Mã phiếu"] = doc._id;
+
+                var sp = sanPhamCollection.Find(s => s._id == doc.id_san_pham).FirstOrDefault();
+                row["Tên sản phẩm"] = sp != null ? sp.ten_san_pham : "Không xác định";
+                row["Ngày kích hoạt"] = doc.ngay_cap;
+                row["Ngày hết hạn"] = doc.ngay_het_han;
+                row["Trạng thái"] = doc.trang_thai;
+
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
+
+        internal object TimTheoTenSP_DSPBH(string text)
+        {
+            var filter = Builders<SanPham>.Filter.Regex(s => s.ten_san_pham, new BsonRegularExpression(text, "i"));
+            var sanPham = sanPhamCollection.Find(filter).FirstOrDefault();
+            var docs = phieuBaoHanhCollection.Find(FilterDefinition<PhieuBaoHanh>.Empty).ToList();
+            if (sanPham != null)
+                docs = phieuBaoHanhCollection.Find(Builders<PhieuBaoHanh>.Filter.Eq(p => p.id_san_pham, sanPham._id)).ToList();
 
             DataTable dt = new DataTable();
             dt.Columns.Add("Mã phiếu");
@@ -359,6 +450,20 @@ namespace QLBaoHanh
             }
             return 0;
         }
+        internal int XoaPhieuSua(string ma)
+        {
+            var doc = ChiTietPhieuSuaCollection.Find(Builders<ChiTietPhieuSua>.Filter.Eq(p => p.id_phieu_sua, ma)).ToList();
+            if(doc.Count == 0)
+            {
+                var filter = Builders<PhieuSuaChua>.Filter.Eq(p => p._id, ma);
+                if (filter != null)
+                {
+                    PhieuSuaChuaCollection.DeleteOne(filter);
+                    return 1;
+                }
+            }
+            return 0;
+        }
 
         internal int ThemChiTietPS(ChiTietPhieuSua ctps, int dongia)
         {
@@ -366,18 +471,44 @@ namespace QLBaoHanh
 
             doc.gia_sua_chua += dongia;
 
-            
-
             if(ctps != null)
             {
                 ChiTietPhieuSuaCollection.InsertOne(ctps);
                 var filter = Builders<PhieuSuaChua>.Filter.Eq("_id", ctps.id_phieu_sua);
                 var update = Builders<PhieuSuaChua>.Update
-               .Set("gia_sua_chua", doc.gia_sua_chua);
+               .Set("gia_sua_chua", doc.gia_sua_chua)
+               .Set("trang_thai", "Đang xử lý");
                 PhieuSuaChuaCollection.UpdateOne(filter, update);
                 return 1;
             }
             return 0;
+        }
+
+        internal int XoaChiTietPhieuSua(string ma)
+        {
+            var doc = ChiTietPhieuSuaCollection.Find(Builders<ChiTietPhieuSua>.Filter.Eq(p => p.id_phieu_sua, ma)).ToList();
+            if (doc.Count == 0)
+                return 0;
+            else
+            {
+                var filter = Builders<ChiTietPhieuSua>.Filter.Eq(p => p.id_phieu_sua, ma);
+                if (filter != null)
+                {
+                    ChiTietPhieuSuaCollection.DeleteOne(filter);
+
+                    var docPSC = PhieuSuaChuaCollection.Find(Builders<PhieuSuaChua>.Filter.Eq(p => p._id, ma)).FirstOrDefault();
+                    docPSC.gia_sua_chua = 0;
+                    docPSC.tien_giam = 0;
+                    var filterpsc = Builders<PhieuSuaChua>.Filter.Eq("_id", ma);
+                    var update = Builders<PhieuSuaChua>.Update
+                       .Set("gia_sua_chua", docPSC.gia_sua_chua)
+                       .Set("tien_giam", docPSC.tien_giam);
+                    PhieuSuaChuaCollection.UpdateOne(filterpsc, update);
+
+                    return 1;
+                }
+                return -1;
+            }
         }
 
         // ------------------------------------lịch sử bảo hành--------------------------------------------
@@ -416,6 +547,75 @@ namespace QLBaoHanh
             }
 
             return dt;
+        }
+
+        internal object TimKiemLS_TheoTenKH(string text)
+        {
+            var filter = Builders<KhachHang>.Filter.Regex(s => s.ten_khach_hang, new BsonRegularExpression(text, "i"));
+            var KH = khachHangCollection.Find(filter).FirstOrDefault();
+            var docs = LichSuBaoHanhCollection.Find(FilterDefinition<LichSuBaoHanh>.Empty).ToList();
+            if (KH != null)
+                docs = LichSuBaoHanhCollection.Find(Builders<LichSuBaoHanh>.Filter.Eq(p => p.id_khach_hang, KH._id)).ToList();
+
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Mã");
+            dt.Columns.Add("Tên sản phẩm");
+            dt.Columns.Add("Tên khách hàng");
+            dt.Columns.Add("Mô tả");
+            dt.Columns.Add("Loại sửa chữa");
+            dt.Columns.Add("Ngày nhận");
+            dt.Columns.Add("Ngày trả");
+
+            foreach (var doc in docs)
+            {
+                DataRow row = dt.NewRow();
+                row["Mã"] = doc._id;
+
+                var sp = sanPhamCollection.Find(s => s._id == doc.id_san_pham).FirstOrDefault();
+                row["Tên sản phẩm"] = sp != null ? sp.ten_san_pham : "Không xác định";
+
+                var kh = khachHangCollection.Find(k => k._id == doc.id_khach_hang).FirstOrDefault();
+                row["Tên khách hàng"] = kh != null ? kh.ten_khach_hang : "Không xác định";
+
+                var psc = PhieuSuaChuaCollection.Find(p => p._id == doc.id_phieu_sua_chua).FirstOrDefault();
+                row["Mô tả"] = psc != null ? psc.mo_ta : "Không xác định";
+                row["Loại sửa chữa"] = psc != null ? psc.loai_sua_chua : "Không xác định";
+                row["Ngày nhận"] = psc.ngay_nhan;
+                row["Ngày trả"] = psc.ngay_hen_tra;
+
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
+
+        internal int ThemLichSuBaoHanh(string ma)
+        {
+            PhieuSuaChua phieu = PhieuSuaChuaCollection.Find(Builders<PhieuSuaChua>.Filter.Eq(p => p._id, ma)).FirstOrDefault();
+            SanPham sp = sanPhamCollection.Find(Builders<SanPham>.Filter.Eq(s => s._id, phieu.san_pham)).FirstOrDefault();
+            KhachHang KH = khachHangCollection.Find(Builders<KhachHang>.Filter.Eq(t => t._id, sp.id_khach_hang)).FirstOrDefault();
+            if (phieu != null)
+            {
+                if(phieu.trang_thai == "Mới tiếp nhận")
+                {
+                    return 0;
+                }    
+                var filter = Builders<PhieuSuaChua>.Filter.Eq("_id", ma);
+                var update = Builders<PhieuSuaChua>.Update
+               .Set("trang_thai", "Đã xong");
+                PhieuSuaChuaCollection.UpdateOne(filter, update);
+
+                LichSuBaoHanh ls = new LichSuBaoHanh
+                {
+                    _id = "LS_" + phieu._id ,
+                    id_phieu_sua_chua = phieu._id,
+                    id_san_pham = phieu.san_pham,
+                    id_khach_hang = KH._id,
+                };
+                LichSuBaoHanhCollection.InsertOne(ls);
+                return 1;
+            }
+            return 0;
         }
 
         // ------------------------------------Linh Kiện--------------------------------------------

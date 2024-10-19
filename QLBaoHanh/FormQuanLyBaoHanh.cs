@@ -221,6 +221,19 @@ namespace QLBaoHanh
             dgvDSPSC.DataSource = conn.getPhieuSuaChua(tt);
         }
 
+        void setnull(bool x)
+        {
+            txtMoTa.Enabled = x;
+            txtLoaiSuaChua.Enabled = x;
+            txtThanhTien.Enabled = x;
+            txtGiamGia.Enabled = x;
+            dgvChiTietPS.Enabled = x;
+            btnThemCTPS.Enabled = x;
+            btnXoaCTPS.Enabled = x;
+            btnXoaPSC.Enabled = x;
+            btnSuaPSC.Enabled = x;
+        }
+
         int vitri;
         string ma;
         private void dgvDSPSC_CellContentClick(object sender, DataGridViewCellEventArgs e)
@@ -231,6 +244,14 @@ namespace QLBaoHanh
             string mapsc = Convert.ToString(row.Cells[0].Value);
             ma = mapsc;
             PhieuSuaChua ps = conn.Get1PhieuSua(mapsc);
+            if(ps.trang_thai == "Đã xong")
+            {
+                setnull(false);
+            }    
+            else
+            {
+                setnull(true);
+            }
             txtMoTa.Text = ps.mo_ta;
             txtLoaiSuaChua.Text = ps.loai_sua_chua;
             txtThanhTien.Text = ps.gia_sua_chua.ToString();
@@ -266,9 +287,21 @@ namespace QLBaoHanh
         private void ThemPhieuSua_FormClosed(object sender, FormClosedEventArgs e)
         {
             loadDataPhieuSuaChua();
-            loadCTPhieuSua(ma);
-            PhieuSuaChua psc = conn.Get1PhieuSua(ma);
-            txtThanhTien.Text = psc.gia_sua_chua.ToString();
+            if(ma != null)
+            {
+                loadCTPhieuSua(ma);
+                PhieuSuaChua psc = conn.Get1PhieuSua(ma);
+                txtThanhTien.Text = psc.gia_sua_chua.ToString();
+                dgvDSPSC.ClearSelection();
+                dgvDSPSC.Rows[vitri].Selected = true;
+            }
+            else
+            {
+                txtMoTa.Text = string.Empty;
+                txtLoaiSuaChua.Text = string.Empty;
+                txtThanhTien.Text = string.Empty;
+                txtGiamGia.Text = string.Empty;
+            }
         }
 
         private void btnThemCTPS_Click(object sender, EventArgs e)
@@ -276,6 +309,86 @@ namespace QLBaoHanh
             ThemChiTietPS form = new ThemChiTietPS(ma);
             form.FormClosed += new FormClosedEventHandler(this.ThemPhieuSua_FormClosed);
             form.ShowDialog();
+        }
+
+        private void btnXoaCTPS_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show("Xóa chi tiết hóa đơn" + ma + " ?", "Xác nhận xóa",MessageBoxButtons.YesNo,MessageBoxIcon.Question);
+            if(result == DialogResult.Yes)
+            {
+                if (conn.XoaChiTietPhieuSua(ma) == 1)
+                {
+                    MessageBox.Show("Xóa thành công!");
+                    loadDataPhieuSuaChua();
+                    loadCTPhieuSua(ma);
+                    PhieuSuaChua psc = conn.Get1PhieuSua(ma);
+                    txtThanhTien.Text = psc.gia_sua_chua.ToString();
+                    txtGiamGia.Text = psc.tien_giam.ToString();
+                    dgvDSPSC.ClearSelection();
+                    dgvDSPSC.Rows[vitri].Selected = true;
+
+                }
+                else if(conn.XoaChiTietPhieuSua(ma) == 0)
+                { MessageBox.Show("Không có dữ liệu để xóa!"); }
+                else
+                    MessageBox.Show("Không thể xóa!");
+            }
+        }
+
+        private void btnXoaPSC_Click(object sender, EventArgs e)
+        {
+            if (conn.XoaPhieuSua(ma) == 1)
+            {
+                MessageBox.Show("Xóa thành công!");
+                loadDataPhieuSuaChua();
+            }
+            else
+                MessageBox.Show("Không thể xóa!");
+        }
+
+        private void btnTimKiemSP_Click(object sender, EventArgs e)
+        {
+            dgvDSSP.DataSource = null;
+            dgvDSSP.DataSource = conn.TimTheoTenSP_DSSP(txtTimKiemSP.Text);
+        }
+
+        private void btnTimKiemPhieu_Click(object sender, EventArgs e)
+        {
+            dgvDSPhieuBH.DataSource = null;
+            dgvDSPhieuBH.DataSource = conn.TimTheoTenSP_DSPBH(txtTimPhieuBaoHanh.Text);
+        }
+
+        private void btnTimKiemKH_Click(object sender, EventArgs e)
+        {
+            dgvDSKH.DataSource = null;
+            dgvDSKH.DataSource = conn.TimKiemKHTheoTen(txtTimKiemKH.Text);
+        }
+
+        private void btnTimLichSu_Click(object sender, EventArgs e)
+        {
+            dgvLSBH.DataSource = null;
+            dgvLSBH.DataSource = conn.TimKiemLS_TheoTenKH(txtTimLichSu.Text);
+        }
+
+        private void btnSuaXong_Click(object sender, EventArgs e)
+        {
+            if(conn.ThemLichSuBaoHanh(ma) == 1)
+            {
+                MessageBox.Show("Phiếu sửa " + ma + " đã hoàn thành!");
+                loadDataPhieuSuaChua();
+                dgvDSPSC.ClearSelection();
+                dgvDSPSC.Rows[vitri].Selected = true;
+                setnull(false);
+            }
+            else
+            {
+                MessageBox.Show("Phiếu sửa chữa chưa thể hoàn thành!");
+            }    
+        }
+
+        private void btnTimKiemPSC_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
